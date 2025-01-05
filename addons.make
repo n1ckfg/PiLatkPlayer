@@ -1,0 +1,7 @@
+ofxOpenCv
+ofxCv
+ofxCvPiCam
+ofxLatk
+ofxOsc
+ofxPoco
+ofxXmlSettings

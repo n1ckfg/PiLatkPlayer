@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="ISO-8859-1"?>
+<settings>
+    <osc_host>Megalodon.local</osc_host>
+    <osc_send_port>7119</osc_send_port>
+    <osc_receive_port>7110</osc_receive_port>
+    <!-- * -->
+    <draw_wireframe>0</draw_wireframe>
+    <video_color>1</video_color>
+    <do_spread>1</do_spread>
+    <play_latk>1</play_latk>
+    <latk_file_name>sandia.json</latk_file_name>
+    <sound_file_name>sound.mp3</sound_file_name>
+    <fbo_rotation>0</fbo_rotation>
+    <secondary_osc_send>0</secondary_osc_send>
+    <!-- * -->
+    <video_device>1</video_device>
+    <cam_width>320</cam_width>
+    <cam_height>240</cam_height>
+    <cam_fps>40</cam_fps>
+    <!-- * -->
+	<point_read_multiplier>1.0</point_read_multiplier>
+    <translate_x>0.0</translate_x>
+    <translate_y>-100.0</translate_y>
+    <random_position_spread>10.0</random_position_spread>
+    <line_width>2</line_width>
+    <alpha_val>255</alpha_val>
+    <decay_alpha>16</decay_alpha>
+    <!-- * -->
+    <contour_slices>10</contour_slices>
+    <contour_min_radius>1.0</contour_min_radius>
+    <contour_max_radius>100.0</contour_max_radius>
+    <contour_line_width>10</contour_line_width>
+    <contour_alpha>127</contour_alpha>
+    <!-- * -->
+    <cam_rotation>270</cam_rotation>
+    <sharpness>50</sharpness>
+	<contrast>0</contrast>
+	<brightness>55</brightness>
+	<iso>800</iso>
+	<exposure_mode>0</exposure_mode>
+    <exposure_compensation>1</exposure_compensation>
+	<shutter_speed>100000</shutter_speed>
+</settings>
