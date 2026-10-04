@@ -17,7 +17,15 @@ void ofApp::setup() {
     secondaryOscSend = (bool) settings.getValue("settings:secondary_osc_send", 0);
 
     oscilloscopeMode = (bool) settings.getValue("settings:oscilloscope_mode", 0);
-    
+
+    // the effect chain from ofxTwoscilloscope's example-transform:
+    // each stroke is a 50Hz loop at 44.1kHz on a canvas the size of the fbo
+    oscilloscope.setup(fbo.getWidth(), fbo.getHeight(), 44100, 50);
+    auto lowPass = oscilloscope.effects.add<XYLowPass>();
+    lowPass->cutoff = 1500;
+    auto delay = oscilloscope.effects.add<XYChannelDelay>();
+    delay->delayY = 0.6f;
+
     oscHost = settings.getValue("settings:osc_host", "127.0.0.1");
     oscSendPort = settings.getValue("settings:osc_send_port", 7110);
     oscReceivePort = settings.getValue("settings:osc_receive_port", 7111);
@@ -168,6 +176,60 @@ void ofApp::randomizePosition() {
     translateY = translateYorig + ofRandom(-randomPositionSpread, randomPositionSpread);
 }
 
+// The round trip from ofxTwoscilloscope's example-transform: each stroke is
+// encoded as a loop of XY audio, run through the effects, and decoded back
+// into strokes. Finished strokes don't change, so they're kept until the frame
+// (or its position) does, and only the stroke being drawn is redone each time.
+vector<ofPolyline> ofApp::oscilloscopeTransform(const vector<ofPolyline>& strokes) {
+    glm::vec2 translate(translateX, translateY);
+
+    if (currentFrame != oscilloscopeCacheFrame || translate != oscilloscopeCacheTranslate) {
+        oscilloscopeCache.clear();
+        oscilloscopeCacheFrame = currentFrame;
+        oscilloscopeCacheTranslate = translate;
+    }
+
+    // Latk units <-> fbo pixels, the same mapping draw() uses
+    glm::vec2 scale(fbo.getWidth() / 128.0, fbo.getHeight() / -128.0);
+
+    vector<ofPolyline> result;
+
+    for (int j=0; j<strokes.size(); j++) {
+        if (j < oscilloscopeCache.size()) {
+            result.insert(result.end(), oscilloscopeCache[j].begin(), oscilloscopeCache[j].end());
+            continue;
+        }
+
+        vector<ofPolyline> decoded;
+
+        if (strokes[j].size() > 1) {
+            ofPolyline source;
+            for (auto& p : strokes[j].getVertices()) {
+                glm::vec2 c = (glm::vec2(p) + translate) * scale;
+                source.addVertex(c.x, c.y);
+            }
+
+            vector<ofPolyline> sources = { source };
+            for (auto& line : oscilloscope.transform(sources)) {
+                ofPolyline stroke;
+                for (auto& c : line.getVertices()) {
+                    glm::vec2 p = glm::vec2(c) / scale - translate;
+                    stroke.addVertex(p.x, p.y);
+                }
+                // the ribbon needs the closing segment as a vertex
+                if (line.isClosed() && stroke.size() > 0) stroke.addVertex(stroke[0]);
+                decoded.push_back(stroke);
+            }
+        }
+
+        // the last stroke is still being drawn
+        if (j < int(strokes.size()) - 1) oscilloscopeCache.push_back(decoded);
+        result.insert(result.end(), decoded.begin(), decoded.end());
+    }
+
+    return result;
+}
+
 void ofApp::update() {
     bgMeshes.clear();
     
@@ -308,20 +370,37 @@ void ofApp::draw() {
             }
         }
     } else if (playLatk) {
+        // the strokes so far, with the current one cut off at currentPoint
+        vector<LatkStroke>& latkStrokes = latk.layers[0].frames[currentFrame].strokes;
+        vector<ofPolyline> strokes;
+
+        for (int j=0; j<currentStroke + 1; j++) {
+            int kLimit = (int) latkStrokes[j].points.size();
+            if (j == currentStroke) kLimit = min(currentPoint + 1, kLimit);
+
+            ofPolyline stroke;
+            for (int k=0; k<kLimit; k++) {
+                stroke.addVertex(latkStrokes[j].points[k]);
+            }
+            strokes.push_back(stroke);
+        }
+
+        if (oscilloscopeMode) strokes = oscilloscopeTransform(strokes);
+
         ofPushMatrix();
         ofSetLineWidth(lineWidth);
         ofScale(ofGetWidth() / 128.0, ofGetHeight() / -128.0);
         ofTranslate(translateX, translateY);
         ofNoFill();
-        
-        for (int j=0; j<currentStroke + 1; j++) {
+
+        for (int j=0; j<strokes.size(); j++) {
             fgMesh.clear();
-            
+
             float widthSmooth = 1;
             float angleSmooth;
-            
-            int kLimit = (int) latk.layers[0].frames[currentFrame].strokes[j].points.size();
-            if (j == currentStroke) kLimit = currentPoint + 1;
+
+            const vector<glm::vec3>& points = strokes[j].getVertices();
+            int kLimit = (int) points.size();
 
             float pointsData[kLimit * 3];
 
@@ -333,7 +412,7 @@ void ofApp::draw() {
                 if (me_m_one < 0) me_m_one = 0;
                 if (me_p_one == kLimit) me_p_one = kLimit - 1;
                 
-                ofPoint diff = latk.layers[0].frames[currentFrame].strokes[j].points[me_p_one] - latk.layers[0].frames[currentFrame].strokes[j].points[me_m_one];
+                ofPoint diff = points[me_p_one] - points[me_m_one];
                 float angle = atan2(diff.y, diff.x);
                 
                 if (k == 0) {
@@ -357,13 +436,13 @@ void ofApp::draw() {
                     offset.y += ofRandom(-spread, spread);
                 }
                 
-                fgMesh.addVertex(latk.layers[0].frames[currentFrame].strokes[j].points[k] + offset);
-                fgMesh.addVertex(latk.layers[0].frames[currentFrame].strokes[j].points[k] - offset);
-                
+                fgMesh.addVertex(points[k] + offset);
+                fgMesh.addVertex(points[k] - offset);
+
                 if (secondaryOscSend) {
-                    pointsData[contourIndex] = latk.layers[0].frames[currentFrame].strokes[j].points[k].x;
-                    pointsData[contourIndex+1] = latk.layers[0].frames[currentFrame].strokes[j].points[k].y;
-                    pointsData[contourIndex+2] = latk.layers[0].frames[currentFrame].strokes[j].points[k].z;
+                    pointsData[contourIndex] = points[k].x;
+                    pointsData[contourIndex+1] = points[k].y;
+                    pointsData[contourIndex+2] = points[k].z;
                 }
             }
            

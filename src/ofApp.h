@@ -4,6 +4,7 @@
 #include "ofxLatk.h"
 #include "ofxCv.h"
 #include "ofxOsc.h"
+#include "ofxTwoscilloscope.h"
 
 #ifdef TARGET_RASPBERRY_PI
 #include "ofxCvPiCam.h"
@@ -108,7 +109,12 @@ public:
     int camW, camH, camFps;
 
     bool oscilloscopeMode = false;
-    
+    XYTransformer oscilloscope; // stroke -> XY audio -> effects -> stroke
+    vector<ofPolyline> oscilloscopeTransform(const vector<ofPolyline>& strokes);
+    vector<vector<ofPolyline>> oscilloscopeCache; // finished strokes of the current frame
+    int oscilloscopeCacheFrame = -1;
+    glm::vec2 oscilloscopeCacheTranslate;
+
     ofMesh fgMesh;
     vector<ofMesh> bgMeshes;
 };

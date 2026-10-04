@@ -11,6 +11,7 @@ In this mode, the application acts as a media player for volumetric stroke anima
 - Loads a Latk `.json` file containing 3D stroke data and an accompanying `.mp3` sound file.
 - The playback of strokes is hardcoded to synchronize with specific timestamp arrays (`startTimesArray`, `stopTimesArray`), intended for progressing the animation along with spoken dialog.
 - Supports stylistic effects like vertex spread/jitter (`doSpread`), custom line colors, wireframe rendering, and applying a post-processing retro VHS shader.
+- **Oscilloscope mode** (`oscilloscope_mode = 1`): the strokes go through the round trip from `ofxTwoscilloscope`'s `example-transform` before they're drawn. Each stroke is encoded as a 50Hz loop of XY audio, run through a low-pass filter and a Y channel delay, and decoded back into strokes, which rounds corners and shears lines into loops. Finished strokes are cached for the rest of the frame, so only the stroke being drawn is re-encoded. No audio is played; the transform runs offline.
 - Listens for incoming OSC `/contour` messages to draw background meshes, which enables multi-node collaborative visuals.
 - Can optionally broadcast the current stroke points over OSC if `secondary_osc_send` is true.
 
@@ -30,7 +31,7 @@ In this mode, the application acts as a computer vision sensor and OSC broadcast
   The main application class inheriting from `ofBaseApp`.
   - **`setup()`**: Loads settings from XML, initializes FBOs, camera inputs, shaders, audio, Latk playback timelines, and configures OSC senders/receivers.
   - **`update()`**: Processes pending OSC messages (converting blobs back to `ofMesh` background geometries), progresses Latk playback based on audio time, and retrieves the latest camera frames.
-  - **`draw()`**: Evaluates the mode and renders accordingly. In contour mode, it slices and computes `ofxCv` contours and sends OSC packets. In Latk mode, it builds `ofMesh` representations of the 3D strokes with custom line width smoothing and renders them, draws incoming OSC background meshes, and finally applies post-processing shaders over the main FBO before drawing it to screen.
+  - **`draw()`**: Evaluates the mode and renders accordingly. In contour mode, it slices and computes `ofxCv` contours and sends OSC packets. In Latk mode, it collects the visible strokes (passing them through `oscilloscopeTransform()` in oscilloscope mode), builds `ofMesh` representations of them with custom line width smoothing and renders them, draws incoming OSC background meshes, and finally applies post-processing shaders over the main FBO before drawing it to screen.
 
 - **`bin/data/`**
   Contains the application's runtime assets:
@@ -48,6 +49,7 @@ The application relies on several openFrameworks addons (listed in `addons.make`
 - `ofxOsc`: For UDP network communication between nodes.
 - `ofxXmlSettings`: For reading runtime configurations.
 - `ofxPoco`: General C++ utilities provided by POCO.
+- `ofxTwoscilloscope`: For encoding strokes as XY oscilloscope audio, applying audio effects, and decoding them back into strokes (oscilloscope mode).
 
 ## Data Flow
 
@@ -60,7 +62,10 @@ flowchart TD
 
     subgraph Player Node [play_latk = 1]
         OSCR[OSC Receiver] -->|Polygons| BG[Background Meshes]
-        JSON[Latk JSON] -->|Strokes| FG[Foreground Meshes]
+        JSON[Latk JSON] -->|Strokes| OSCI{oscilloscope_mode}
+        OSCI -->|0| FG[Foreground Meshes]
+        OSCI -->|1| XY["XY audio, effects, decode"]
+        XY -->|Altered strokes| FG
         Audio[sound.mp3] -->|Time| FG
         BG --> Render[FBO Render]
         FG --> Render

@@ -5,3 +5,4 @@ ofxLatk
 ofxOsc
 ofxPoco
 ofxXmlSettings
+ofxTwoscilloscope
