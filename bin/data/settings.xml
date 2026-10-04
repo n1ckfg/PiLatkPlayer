@@ -40,4 +40,5 @@
 	<exposure_mode>0</exposure_mode>
     <exposure_compensation>0</exposure_compensation>
 	<shutter_speed>100000</shutter_speed>
+	<oscilloscope_mode>1</oscilloscope_mode>
 </settings>

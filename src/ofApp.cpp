@@ -14,7 +14,9 @@ void ofApp::setup() {
     doSpread = (bool) settings.getValue("settings:do_spread", 0);
     playLatk = (bool) settings.getValue("settings:play_latk", 1);
     fboRotation = settings.getValue("settings:fbo_rotation", 180);
-    secondaryOscSend = (bool) settings.getValue("settings:secondaryOscSend", 0);
+    secondaryOscSend = (bool) settings.getValue("settings:secondary_osc_send", 0);
+
+    oscilloscopeMode = (bool) settings.getValue("settings:oscilloscope_mode", 0);
     
     oscHost = settings.getValue("settings:osc_host", "127.0.0.1");
     oscSendPort = settings.getValue("settings:osc_send_port", 7110);

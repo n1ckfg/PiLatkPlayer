@@ -106,6 +106,8 @@ public:
     float fboRotation = 180;
     
     int camW, camH, camFps;
+
+    bool oscilloscopeMode = false;
     
     ofMesh fgMesh;
     vector<ofMesh> bgMeshes;
